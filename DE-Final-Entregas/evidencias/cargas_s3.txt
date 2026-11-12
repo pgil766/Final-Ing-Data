@@ -1,0 +1,31 @@
+# Etapa inicial - carga de los dias 1 y 2 (2026-11-12T06:21:35-05:00)
+$ aws s3 cp data/entregas/fecha=2026-10-01/entregas.csv s3://de-final-entregas-807872461370/entregas/fecha=2026-10-01/entregas.csv
+upload: data/entregas/fecha=2026-10-01/entregas.csv to s3://de-final-entregas-807872461370/entregas/fecha=2026-10-01/entregas.csv
+$ aws s3 cp data/entregas/fecha=2026-10-02/entregas.csv s3://de-final-entregas-807872461370/entregas/fecha=2026-10-02/entregas.csv
+upload: data/entregas/fecha=2026-10-02/entregas.csv to s3://de-final-entregas-807872461370/entregas/fecha=2026-10-02/entregas.csv
+
+$ aws s3 ls s3://de-final-entregas-807872461370/entregas/ --recursive
+2026-11-12 06:21:41        313 entregas/fecha=2026-10-01/entregas.csv
+2026-11-12 06:21:44        313 entregas/fecha=2026-10-02/entregas.csv
+
+# Etapa final - carga del dia 3 (2026-11-12T06:22:49-05:00)
+# Sin crawlers, sin MSCK REPAIR TABLE, sin ALTER TABLE ADD PARTITION y sin cambios en Terraform.
+$ aws s3 cp data/entregas/fecha=2026-10-03/entregas.csv s3://de-final-entregas-807872461370/entregas/fecha=2026-10-03/entregas.csv
+upload: data/entregas/fecha=2026-10-03/entregas.csv to s3://de-final-entregas-807872461370/entregas/fecha=2026-10-03/entregas.csv
+
+$ aws s3 ls s3://de-final-entregas-807872461370/entregas/ --recursive
+2026-11-12 06:21:41        313 entregas/fecha=2026-10-01/entregas.csv
+2026-11-12 06:21:44        313 entregas/fecha=2026-10-02/entregas.csv
+2026-11-12 06:22:54        323 entregas/fecha=2026-10-03/entregas.csv
+
+$ aws glue get-partitions --database-name mensajeria --table-name entregas
+{
+    "Partitions": []
+}
+
+$ terraform -chdir=infraestructura plan -detailed-exitcode   (0 = sin cambios en la infraestructura)
+
+Terraform has compared your real infrastructure against your configuration
+and found no differences, so no changes are needed.
+exit code: 0
+Definicion de la tabla sin cambios (sha256 igual antes y despues)

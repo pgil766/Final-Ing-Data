@@ -1,0 +1,7 @@
+escenario: actualizada
+fuente: source.examen_ventas.ventas_raw.ventas
+status: pass
+max_loaded_at: 2026-11-12T09:53:14.230267+00:00
+snapshotted_at: 2026-11-12T11:53:27.743000+00:00
+antiguedad: 2.00 horas
+criterio: {"warn_after": {"count": 12, "period": "hour"}, "error_after": {"count": 24, "period": "hour"}, "filter": null}

@@ -1,0 +1,18 @@
+# Motivo del fallo de freshness en la ejecucion manual__2026-11-12T11:56:30.702456+00:00
+# 1) Fragmento de dbt.log (salida de 'dbt source freshness' lanzada por la tarea comprobar_freshness)
+11:56:36.077100 [info ] [MainThread]: Running with dbt=1.9.4
+11:56:36.083496 [debug] [MainThread]: running dbt with arguments {'printer_width': '80', 'indirect_selection': 'eager', 'log_cache_events': 'False', 'write_json': 'True', 'partial_parse': 'True', 'cache_selected_only': 'False', 'profiles_dir': '/workspace/dbt', 'debug': 'False', 'fail_fast': 'False', 'log_path': '/state/dbt/logs', 'version_check': 'True', 'warn_error': 'None', 'use_colors': 'True', 'use_experimental_parser': 'False', 'no_print': 'None', 'quiet': 'False', 'empty': 'None', 'log_format': 'default', 'static_parser': 'True', 'invocation_command': 'dbt source freshness --project-dir /workspace/dbt --profiles-dir /workspace/dbt', 'introspect': 'True', 'target_path': '/state/dbt/target', 'warn_error_options': 'WarnErrorOptions(include=[], exclude=[])', 'send_anonymous_usage_stats': 'False'}
+11:56:36.620059 [info ] [Thread-1 (]: 1 of 1 START freshness of ventas_raw.ventas .................................... [RUN]
+11:56:36.635077 [error] [Thread-1 (]: 1 of 1 ERROR STALE freshness of ventas_raw.ventas .............................. [ERROR STALE in 0.01s]
+11:56:36.660799 [info ] [MainThread]: Done.
+11:56:36.661822 [debug] [MainThread]: Resource report: {"command_name": "freshness", "command_success": false, "command_wall_clock_time": 0.6222653, "process_in_blocks": "5696", "process_kernel_time": 0.768883, "process_mem_max_rss": "143524", "process_out_blocks": "1904", "process_user_time": 1.555341}
+11:56:36.662263 [debug] [MainThread]: Command `dbt source freshness` failed at 11:56:36.662195 after 0.62 seconds
+
+# 2) Resultado en target/sources.json (artefacto de dbt)
+generated_at: 2026-11-12T11:56:36.643296Z
+fuente: source.examen_ventas.ventas_raw.ventas
+status: error
+max_loaded_at: 2026-11-11T05:56:24.357868+00:00
+snapshotted_at: 2026-11-12T11:56:36.630000+00:00
+antiguedad: 30.00 horas (108012 s)
+criterio: {"warn_after": {"count": 12, "period": "hour"}, "error_after": {"count": 24, "period": "hour"}, "filter": null}

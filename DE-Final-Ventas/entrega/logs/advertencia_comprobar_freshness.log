@@ -1,0 +1,20 @@
+attempt=1.log
+[2026-11-12T11:55:30.392+0000] {local_task_job_runner.py:123} INFO - ::group::Pre task execution logs
+[2026-11-12T11:55:30.399+0000] {taskinstance.py:2614} INFO - Dependencies all met for dep_context=non-requeueable deps ti=<TaskInstance: examen_ventas.comprobar_freshness manual__2026-11-12T11:55:27.682370+00:00 [queued]>
+[2026-11-12T11:55:30.403+0000] {taskinstance.py:2614} INFO - Dependencies all met for dep_context=requeueable deps ti=<TaskInstance: examen_ventas.comprobar_freshness manual__2026-11-12T11:55:27.682370+00:00 [queued]>
+[2026-11-12T11:55:30.403+0000] {taskinstance.py:2867} INFO - Starting attempt 1 of 1
+[2026-11-12T11:55:30.419+0000] {taskinstance.py:2890} INFO - Executing <Task(PythonOperator): comprobar_freshness> on 2026-11-12 11:55:27.682370+00:00
+[2026-11-12T11:55:30.425+0000] {standard_task_runner.py:72} INFO - Started process 408 to run task
+[2026-11-12T11:55:30.429+0000] {standard_task_runner.py:104} INFO - Running: ['airflow', 'tasks', 'run', 'examen_ventas', 'comprobar_freshness', 'manual__2026-11-12T11:55:27.682370+00:00', '--job-id', '7', '--raw', '--subdir', 'DAGS_FOLDER/examen_ventas.py', '--cfg-path', '/tmp/tmptfgs64iq']
+[2026-11-12T11:55:30.431+0000] {standard_task_runner.py:105} INFO - Job 7: Subtask comprobar_freshness
+[2026-11-12T11:55:30.460+0000] {task_command.py:467} INFO - Running <TaskInstance: examen_ventas.comprobar_freshness manual__2026-11-12T11:55:27.682370+00:00 [running]> on host 6da6ea754247
+[2026-11-12T11:55:30.533+0000] {taskinstance.py:3134} INFO - Exporting env vars: AIRFLOW_CTX_DAG_OWNER='airflow' AIRFLOW_CTX_DAG_ID='examen_ventas' AIRFLOW_CTX_TASK_ID='comprobar_freshness' AIRFLOW_CTX_EXECUTION_DATE='2026-11-12T11:55:27.682370+00:00' AIRFLOW_CTX_TRY_NUMBER='1' AIRFLOW_CTX_DAG_RUN_ID='manual__2026-11-12T11:55:27.682370+00:00'
+[2026-11-12T11:55:30.534+0000] {taskinstance.py:732} INFO - ::endgroup::
+[2026-11-12T11:55:30.546+0000] {logging_mixin.py:190} INFO - INICIO dbt ['source', 'freshness']
+[2026-11-12T11:55:32.716+0000] {logging_mixin.py:190} INFO - FIN dbt ['source', 'freshness']
+[2026-11-12T11:55:32.716+0000] {python.py:240} INFO - Done. Returned value was: None
+[2026-11-12T11:55:32.722+0000] {taskinstance.py:341} INFO - ::group::Post task execution logs
+[2026-11-12T11:55:32.722+0000] {taskinstance.py:353} INFO - Marking task as SUCCESS. dag_id=examen_ventas, task_id=comprobar_freshness, run_id=manual__2026-11-12T11:55:27.682370+00:00, execution_date=20261112T115527, start_date=20261112T115530, end_date=20261112T115532
+[2026-11-12T11:55:32.889+0000] {local_task_job_runner.py:266} INFO - Task exited with return code 0
+[2026-11-12T11:55:32.911+0000] {taskinstance.py:3901} INFO - 1 downstream tasks scheduled from follow-on schedule check
+[2026-11-12T11:55:32.919+0000] {local_task_job_runner.py:245} INFO - ::endgroup::
