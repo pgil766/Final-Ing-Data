@@ -1,0 +1,1316 @@
+ ▐▛███▛█   Claude Code v2.1.322
+▝▜██████▀  Opus 5.5 · Claude Pro
+ ▝▝   ▝▝   ~\Universidad\Ing.Datos
+
+
+> debes entrar a wsl ubuntu a la carpeta de Ing-Data y vamos a trabajar en la   
+  carpeta que se llama final especificamente en la carpeta DE-final-Entregas,   
+  debes leer muy bien el README del proyecto ya que en este se basa el profesor 
+  para realizar la calificacion y ademas revisar el resto de contenido dentro   
+  de la carpeta de ing data como contexto de lo que hemos hecho en clase, el    
+  uso de ia esta permitido siempre y cuando le envie el hilo al profe cosa que  
+  haremos al final, adicional a esto usaremos extension de claude en google si  
+  necesitamos crear cosas en aws o lo que necesites, entonces analiza lo que    
+  debemos hacer y preguntame lo que necesites para hacerlo                      
+
+  Ran 5 shell commands (ctrl+o to expand)
+
+● Ya leí el README del proyecto final; ahora reviso los datos, las herramientas
+  disponibles en WSL (Terraform, AWS CLI) y una actividad AWS previa como
+  referencia.
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+● Quoting issue; I'll use a script file.
+
+  Ran 3 shell commands (ctrl+o to expand)
+
+● Ya revisé todo. Esto es lo que encontré y lo que hay que hacer.
+
+  Estado del entorno (WSL Ubuntu-24.04)
+  - La carpeta del proyecto es ~/Ing-Data/Final/DE-Final-Entregas. Es un clon
+    del repositorio del profe (smm-0216/DE-Final-Entregas) y solo trae
+    README.md, data/ y resultados_esperados/.
+  - Terraform 1.16.5 y AWS CLI v2 ya están listos, con el usuario user_cli
+    (tiene AdministratorAccess) en us-east-2. Es la misma región que usamos en
+    la Actividad AWS. Por eso casi todo lo puedo hacer por CLI y probablemente
+    no necesitemos Chrome para AWS.
+  - gh (la herramienta de GitHub para la terminal) no está instalada. Para crear
+    el repositorio de entrega podemos usar Chrome o crearlo tú.
+
+  Plan (lo que pide el README del profe)
+  1. Repositorio de entrega: dentro de esta misma carpeta, renombro el remoto
+     del profe a upstream, apunto origin a nuestro repositorio y creo la
+     estructura exacta de la sección 9, más el .gitignore (credenciales,
+     *.tfstate* y .terraform/).
+  2. Terraform en infraestructura/ (principal.tf, variables.tf, salidas.tf):
+     - Un bucket S3 privado con bloqueo de acceso público.
+     - Una base de datos de Glue.
+     - Una tabla externa con 4 columnas string y duracion_minutos int, separador
+       coma, skip.header.line.count=1 y fecha como partición string.
+     - Partition projection de tipo date, formato yyyy-MM-dd, rango
+       2026-10-01,2026-10-03, intervalo de 1 día y plantilla
+       s3://<bucket>/entregas/fecha=${fecha}/.
+     - Un workgroup de Athena que escribe en resultados-athena/, y los outputs.
+  3. Etapa inicial: terraform apply guardando la salida en
+     evidencias/aplicacion_terraform.txt, luego outputs.json. Subo solo los días
+     1 y 2, archivo por archivo. Corro las 3 consultas, guardo los CSV en
+     resultados/inicial/, los comparo con los esperados y registro cada
+     ejecución en ejecuciones_athena.csv.
+  4. Etapa final: subo solo el día 3, sin tocar Terraform. Corro la verificación
+     (los 6 registros, el conteo por estado y el total de 18) y vuelvo a correr
+     las consultas de intentos y de porcentaje para resultados/final/.
+  5. Escribo respuestas.md con las 2 preguntas conceptuales y el README.md con
+     pasos reproducibles.
+  6. Limpieza: vacío el bucket y corro terraform destroy, guardando la salida en
+     evidencias/eliminacion_terraform.txt. Después hago commit y push.
+
+  Un detalle técnico: Athena guarda los CSV con todas las comillas
+  ("fecha","estado") y las referencias del profe vienen sin comillas. Por eso
+  guardaré los resultados en el mismo formato que las referencias, para que la
+  comparación sea exacta. El costo en AWS es de centavos.
+
+  Antes de empezar necesito que me respondas esto:
+
+● User answered Claude's questions:
+  ⎿  · ¿Dónde creamos el repositorio de GitHub para la entrega? (gh no está 
+     instalado en WSL y git usa el usuario pgil766) → Tú lo creas y me pasas la 
+     URL
+     · ¿El repositorio debe ser público o privado? (si es privado hay que 
+     invitar al profe smm-0216 como colaborador) → Público (Recommended)
+     · ¿Ejecuto yo todo en AWS de punta a punta (apply, cargas, consultas 
+     Athena, destroy) con user_cli en us-east-2? → Sí, todo por CLI 
+     (Recommended)
+     · ¿Quiénes son los integrantes que deben aparecer en el README de la 
+     entrega? → Solo Pablo Gil
+
+● Perfecto. Trabajo todo en local y hago el push cuando me pases la URL del
+  repo. Empiezo con la estructura y el código Terraform.
+
+● Write(\\wsl.localhost\Ubuntu-24.04\home\pgilm\Ing-Data\Final\DE-Final-Entregas
+       \infraestructura\variables.tf)
+  ⎿  Wrote 47 lines to \\wsl.localhost\Ubuntu-24.04\home\pgilm\Ing-Data\Fin
+     al\DE-Final-Entregas\infraestructura\variables.tf
+       1 variable "region" {
+       2   description = "Region de AWS donde se despliegan todos los rec
+         ursos."
+       3   type        = string
+       4   default     = "us-east-2"
+       5 }
+       6 
+       7 variable "prefijo_bucket" {
+       8   description = "Prefijo del nombre del bucket. Se le agrega el 
+         ID de la cuenta para que el nombre sea unico."
+     … +39 lines (ctrl+o to expand)
+
+● Write(\\wsl.localhost\Ubuntu-24.04\home\pgilm\Ing-Data\Final\DE-Final-Entregas
+       \infraestructura\principal.tf)
+  ⎿  Wrote 164 lines to \\wsl.localhost\Ubuntu-24.04\home\pgilm\Ing-Data\Fi
+     nal\DE-Final-Entregas\infraestructura\principal.tf
+       1 terraform {
+       2   required_version = ">= 1.5.0"
+       3 
+       4   required_providers {
+       5     aws = {
+       6       source  = "hashicorp/aws"
+       7       version = "~> 6.0"
+       8     }
+       9   }
+      10 }
+     … +154 lines (ctrl+o to expand)
+
+● Write(\\wsl.localhost\Ubuntu-24.04\home\pgilm\Ing-Data\Final\DE-Final-Entregas
+       \infraestructura\salidas.tf)
+  ⎿  Wrote 44 lines to \\wsl.localhost\Ubuntu-24.04\home\pgilm\Ing-Data\Fin
+     al\DE-Final-Entregas\infraestructura\salidas.tf
+      1 output "region" {
+      2   description = "Region donde se crearon los recursos."
+      3   value       = var.region
+      4 }
+      5 
+      6 output "bucket" {
+      7   description = "Nombre del bucket S3 privado del ejercicio."
+      8   value       = aws_s3_bucket.datos.bucket
+      9 }
+     … +35 lines (ctrl+o to expand)
+
+● Write(\\wsl.localhost\Ubuntu-24.04\home\pgilm\Ing-Data\Final\DE-Final-Entregas
+       \.gitignore)
+  ⎿  Wrote 28 lines to \\wsl.localhost\Ubuntu-24.04\home\pgilm\Ing-Data\Fin
+     al\DE-Final-Entregas\.gitignore
+       1 # Terraform: carpeta local y archivos de estado (pueden contener
+          datos sensibles)
+       2 .terraform/
+       3 *.tfstate
+       4 *.tfstate.*
+       5 *.tfplan
+       6 tfplan
+       7 crash.log
+       8 *.tfvars
+       9 *.tfvars.json
+     … +19 lines (ctrl+o to expand)
+
+● Ahora las consultas SQL y un script para ejecutarlas en Athena y registrar la
+  evidencia.
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Write(\\wsl.localhost\Ubuntu-24.04\home\pgilm\Ing-Data\Final\DE-Final-Entregas
+       \scripts\ejecutar_consulta.sh)
+  ⎿  Wrote 75 lines to \\wsl.localhost\Ubuntu-24.04\home\pgilm\Ing-Data\Fin
+     al\DE-Final-Entregas\scripts\ejecutar_consulta.sh
+       1 #!/usr/bin/env bash
+       2 # Ejecuta en Athena las consultas de un archivo .sql, descarga e
+         l CSV que Athena
+       3 # escribe en s3://<bucket>/resultados-athena/ y registra cada ej
+         ecucion en
+       4 # evidencias/ejecuciones_athena.csv.
+       5 #
+       6 # Uso (desde la raiz del repositorio):
+       7 #   bash scripts/ejecutar_consulta.sh <etapa> <archivo.sql> <res
+         ultado1.csv> [resultado2.csv ...]
+     … +68 lines (ctrl+o to expand)
+
+● Valido el código con Terraform antes de aplicarlo.
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Plan correcto (7 recursos). Aplico y guardo la evidencia y los outputs.
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● PowerShell is mangling quotes; I'll use script files for multi-step commands.
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+● Infraestructura desplegada. Ahora la etapa inicial: subo solo los días 1 y 2,
+  corro las 3 consultas y comparo con las referencias.
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+● Los 3 resultados iniciales coinciden con las referencias. Agrego una
+  comprobación de que hay 12 registros y de que el día 3 aún no devuelve filas,
+  y luego paso a la etapa final. · summary
+
+  Ran 2 shell commands (ctrl+o to expand)
+
+● Los resultados finales cuadran con las referencias, aunque Glue no tiene
+  particiones registradas y terraform plan no muestra cambios. Ahora limpio el
+  log de carga, escribo respuestas.md y el README, y guardo el enunciado como
+  ENUNCIADO.md. · summary
+
+● Write(\\wsl.localhost\Ubuntu-24.04\home\pgilm\Ing-Data\Final\DE-Final-Entregas
+       \respuestas.md)
+  ⎿  Wrote 49 lines to \\wsl.localhost\Ubuntu-24.04\home\pgilm\Ing-Data\Fin
+     al\DE-Final-Entregas\respuestas.md
+       1 # Respuestas
+       2 
+       3 ## 1. ¿Por qué se pudo consultar el tercer día sin registrar una
+          partición nueva?
+       4 
+       5 Porque la tabla `mensajeria.entregas` no depende de particiones 
+         registradas en el catálogo. Usa **partition projection**. En Ter
+         raform (`infraestructura/principal.tf`) se definieron como propi
+         edades de la tabla las reglas para calcular las particiones:
+       6 
+     … +43 lines (ctrl+o to expand)
+
+  Ran 3 shell commands (ctrl+o to expand)
+
+● Ahora el README de la entrega con las instrucciones reproducibles.
+
+● Write(\\wsl.localhost\Ubuntu-24.04\home\pgilm\Ing-Data\Final\DE-Final-Entregas
+       \README.md)  ⎿  Wrote 262 lines to \\wsl.localhost\Ubuntu-24.04\home\pgilm\Ing-Data\Fi
+     nal\DE-Final-Entregas\README.md
+       1 # Entregas de mensajería con S3, Glue (partition projection) y A
+         thena
+       2 
+       3 Proyecto final de Ingeniería de Datos. **Autor:** Pablo Gil.
+       4 
+       5 Una empresa de mensajería recibe cada día un CSV con sus intento
+         s de entrega. Los datos quedan en S3, Glue Data Catalog guarda e
+         l esquema y las reglas de **partition projection**, y Athena con
+         sulta los CSV. Cada fecha nueva se incorpora **solo subiendo el 
+         archivo y consultando**: sin crawlers, sin `MSCK REPAIR TABLE` y
+     … +258 lines (~15 KB) (ctrl+o to expand)
+
+● Las evidencias ya están guardadas. Ahora vacío el bucket y ejecuto terraform 
+  destroy.
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● El bucket quedó con objetos, probablemente escritos después del rm. Reviso qué
+  contiene.
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● La falla fue mía: --no-progress no existe en aws s3 rm, así que el bucket
+  nunca se vació y Terraform no pudo borrarlo. Repito el vaciado y el destroy,
+  dejando constancia del primer intento fallido. · summary
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Todos los recursos están eliminados y el estado de Terraform quedó vacío.
+  Ahora corrijo un comentario de la evidencia y reviso qué entraría en git. 
+  · summary
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● El proyecto quedó completo en local y el AWS ya está limpio. Falta solo
+  publicarlo en GitHub.
+
+  Lo que se ejecutó en AWS (us-east-2, usuario user_cli):
+  1. Terraform: creó 7 recursos: el bucket privado
+     de-final-entregas-807872461370, la base de datos de Glue mensajeria, la
+     tabla entregas con partition projection y el workgroup entregas-wg.
+  2. Etapa inicial: subí solo los días 1 y 2, archivo por archivo. Las 3
+     consultas dan exactamente lo mismo que los archivos de
+     resultados_esperados/. Hay 12 registros, y el día 3, aunque está dentro del
+     rango, devuelve 0 filas.
+  3. Etapa final: subí solo el día 3. Aparecen sus 6 registros, la tabla suma 18
+     y los conteos por estado son correctos. Los resultados de intentos y de
+     porcentaje coinciden con las referencias finales. Además quedó como
+     evidencia que Glue tiene 0 particiones registradas, que terraform plan no
+     ve cambios y que la definición de la tabla no cambió.
+  4. Limpieza: vacié el bucket y corrí terraform destroy. Comprobé que el
+     bucket, la base de datos y el workgroup ya no existen.
+
+  Un error mío durante la limpieza: en el primer intento usé una opción que aws 
+  s3 rm no acepta, el bucket no se vació y Terraform no pudo borrarlo. Lo repetí
+  y funcionó. En evidencias/eliminacion_terraform.txt dejé los dos intentos,
+  con una nota que explica qué falló.
+
+  Cambios que hice en la carpeta:
+  - La estructura exacta de la sección 9 del enunciado, con el README.md
+    reproducible y respuestas.md.
+  - El README.md original del profe ahora se llama ENUNCIADO.md, porque la
+    entrega necesita su propio README.
+  - Agregué un script, scripts/ejecutar_consulta.sh, que corre cada consulta en
+    Athena y anota su ID de ejecución en evidencias/ejecuciones_athena.csv.
+  - Agregué tres archivos que el profe no pide pero que sirven como prueba:
+    consultas/verificacion_inicial.sql, evidencias/cargas_s3.txt y algunos
+    resultados de verificación más. El enunciado permite archivos adicionales.
+  - El README incluye una sección que dice que se usó IA y que se enviará el
+    hilo al profe.
+  - Los archivos de estado de Terraform y la carpeta .terraform/ quedan fuera
+    del repositorio, y no hay credenciales en ningún archivo.
+
+  Lo que necesito de ti:
+  - La URL del repositorio público vacío en GitHub, sin README ni .gitignore,
+    para que no haya conflictos al subir.
+  - Tu autorización para hacer el commit y el push. Ya dejé todo listo para el
+    commit con tu usuario de git (pgil766). Apuntaré origin a tu repositorio y
+    dejaré el del profe como upstream.
+
+  Cuando el push esté hecho, le pasas al profe el enlace del repositorio y este
+  hilo.
+
+✻ Crunched for 12m 34s · done 6:27 a.m.
+
+※ recap: El proyecto final de Athena con partition projection ya está completo y verificado, y AWS quedó limpio. Para subirlo necesito la URL de tu repositorio público vacío en GitHub y tu autorización para hacer el commit y el push. (disable recaps in /config)
+
+> Ahora revisemos lo que hiciste y explicame todo que quiero entenderlo         
+
+  Read 1 file (ctrl+o to expand)
+
+● Te explico todo en el orden en que se construyó. Vi que reescribiste
+  respuestas.md con tus palabras. Está bien así, porque el enunciado pide
+  "redactar con palabras propias", y lo que dice es correcto.
+
+  ---
+
+  1. La idea general
+
+  En el ejercicio participan tres servicios, y cada uno hace una sola cosa:
+
+  ┌──────────────┬──────────────────────────────────────────────────────────┐
+  │   Servicio   │                         Qué hace                         │
+  ├──────────────┼──────────────────────────────────────────────────────────┤
+  │ S3           │ Guarda los archivos CSV tal cual, como objetos. No sabe  │
+  │              │ que son tablas.                                          │
+  ├──────────────┼──────────────────────────────────────────────────────────┤
+  │ Glue Data    │ Guarda la descripción de los datos: columnas, tipos,     │
+  │ Catalog      │ dónde están y cómo leerlos. No guarda datos.             │
+  ├──────────────┼──────────────────────────────────────────────────────────┤
+  │              │ Lee la descripción en Glue, va a S3, lee los CSV y       │
+  │ Athena       │ ejecuta SQL. Escribe los resultados en otra parte del    │
+  │              │ bucket.                                                  │
+  └──────────────┴──────────────────────────────────────────────────────────┘
+
+  El problema de las particiones
+
+  Los datos están organizados por carpetas de fecha
+  (entregas/fecha=2026-10-01/). Normalmente, para que Athena "vea" una carpeta
+  nueva, hay que registrarla en Glue como partición, con un crawler, MSCK REPAIR
+  TABLE o ALTER TABLE ADD PARTITION. El profe prohíbe las tres.
+
+  La solución: partition projection
+
+  En vez de registrar cada fecha, le das a la tabla una regla: "las fechas van
+  del 1 al 3 de octubre, de a un día, con formato yyyy-MM-dd, y cada una está en
+  entregas/fecha=<fecha>/". Al consultar, Athena calcula las fechas posibles,
+  va a buscar cada carpeta y lee lo que haya. Si una carpeta está vacía, no pasa
+  nada: esa fecha simplemente no aporta filas.
+
+  Por eso el día 3 "apareció solo": la regla ya lo incluía desde el principio,
+  solo faltaba el archivo.
+
+  ---
+
+  2. Terraform (infraestructura/)
+
+  variables.tf
+
+  Son los valores configurables: región us-east-2, nombres (mensajeria,
+  entregas, entregas-wg), prefijos (entregas/, resultados-athena/) y
+  rango_fechas = "2026-10-01,2026-10-03". Dejé el rango como variable a
+  propósito: la pregunta 2 se resuelve cambiándola.
+
+  principal.tf, por partes
+
+  Proveedor y nombre del bucket
+  hcl
+  data "aws_caller_identity" "actual" {}
+  locals { nombre_bucket =
+  "${var.prefijo_bucket}-${data.aws_caller_identity.actual.account_id}" }
+  Los nombres de bucket son únicos en todo el mundo. Agregarle el ID de tu
+  cuenta casi garantiza que el nombre esté libre.
+
+  Bucket privado (requisito 1)
+  - aws_s3_bucket: crea el bucket.
+  - aws_s3_bucket_public_access_block: los 4 bloqueos en true. Esto es lo que
+    hace que el bucket sea "privado con bloqueo de acceso público", como pide el
+    profe.
+  - ownership_controls = BucketOwnerEnforced: desactiva las ACL, la forma
+    antigua de dar permisos por objeto. Es buena práctica.
+  - Cifrado SSE-S3: AWS cifra los archivos guardados. Es un extra que no
+    pidieron.
+
+  Base de datos de Glue (requisito 3): solo un nombre, mensajeria. Es como un
+  "schema" que agrupa tablas.
+
+  La tabla (requisito 4), la parte más importante:
+
+  hcl
+  partition_keys { name = "fecha"  type = "string" }
+  fecha no está en el CSV: sale del nombre de la carpeta. Por eso va en
+  partition_keys y no en columns.
+
+  hcl
+  "skip.header.line.count" = "1"
+  Le dice a Athena que ignore la primera línea de cada archivo (el encabezado).
+  Sin esto aparecería una fila con id_envio, ciudad, etc. como si fueran datos.
+
+  hcl
+  serialization_library = "org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe"
+  "field.delim" = ","
+  El SerDe es el "lector" que convierte cada línea de texto en columnas. Elegí
+  LazySimpleSerDe y no OpenCSVSerde porque este último lee todo como texto, y el
+  profe pide duracion_minutos como int. LazySimpleSerDe sirve porque los datos
+  no tienen comillas ni comas internas, como dice el enunciado.
+
+  Las 5 columns van en el mismo orden del encabezado. Esto importa porque el
+  SerDe asigna los valores por posición, no por nombre.
+
+  Las propiedades de proyección:
+  hcl
+  "projection.enabled"             = "true"
+  "projection.fecha.type"          = "date"
+  "projection.fecha.format"        = "yyyy-MM-dd"
+  "projection.fecha.range"         = "2026-10-01,2026-10-03"
+  "projection.fecha.interval"      = "1"
+  "projection.fecha.interval.unit" = "DAYS"
+  "storage.location.template"      = "s3://<bucket>/entregas/fecha=$${fecha}/"
+  - Cada propiedad corresponde a algo del enunciado: tipo fecha, formato, rango
+    con ambos extremos incluidos e intervalo de 1 día.
+  - La plantilla termina en / porque es la carpeta (prefijo) de la partición, no
+    el archivo, tal como pide el enunciado.
+  - El $${fecha} lleva doble $ para que Terraform no intente reemplazarlo por
+    una variable propia. Terraform lo escribe como ${fecha} literal, y ese es el
+    marcador que Athena reemplaza por cada fecha. Lo verificamos con aws glue 
+    get-table.
+
+  Workgroup de Athena (requisito 5)
+  - output_location = s3://<bucket>/resultados-athena/: ahí Athena escribe cada
+    resultado como <id>.csv.
+  - enforce_workgroup_configuration = true: obliga a usar esa ubicación aunque
+    alguien intente otra.
+  - force_destroy = true: permite borrar el workgroup aunque tenga historial de
+    consultas. Sin esto, el destroy falla.
+
+  salidas.tf (requisito 6)
+
+  Los outputs del bucket, la base de datos, la tabla, el workgroup y las rutas.
+  Además, el script los usa con terraform output -raw bucket, así no hay nombres
+  escritos a mano en otros lados.
+
+  .terraform.lock.hcl
+
+  Fija la versión exacta del proveedor de AWS para que quien reproduzca el
+  trabajo use la misma. Sí se sube al repo; lo que no se sube es el .tfstate.
+
+  ---
+
+  3. Las consultas SQL (consultas/)
+
+  Intentos por fecha y estado: un COUNT(*) con GROUP BY fecha, estado y ORDER BY
+  fecha, estado. Es sencilla.
+
+  Porcentaje de éxito:
+  100.0E0 * SUM(CASE WHEN estado = 'entregado' THEN 1 ELSE 0 END) / COUNT(*)
+  - El CASE cuenta solo los éxitos, y COUNT(*) cuenta todos los intentos. Así el
+    denominador incluye todos los estados, como pide el profe.
+  - 100.0E0 es un número DOUBLE. Si fuera 100, entero, la división 2/3 daría 0,
+    porque sería división entera. Eso es lo que el profe pide evitar.
+  - ROUND(..., 2) redondea, y CAST(... AS DECIMAL(5,2)) garantiza que siempre se
+    muestren dos decimales. Por ejemplo, un 50 saldría como 50.00.
+
+  Duración promedio del día 2: WHERE fecha = '2026-10-02' AND estado = 
+  'entregado' y luego AVG. El filtro de estado es lo que excluye los ceros de
+  los fallidos. Con eso da (25+35+50)/3 = 36.67. Si se incluyeran los ceros, el
+  promedio bajaría.
+
+  Detalle clave: las consultas agregadas no filtran por fecha. Athena recorre
+  todo el rango proyectado y solo devuelve las fechas que tienen datos. Por eso
+  el mismo SQL dio 6 filas en la etapa inicial y 9 en la final, sin editarlo. El
+  enunciado contempla esto: "si la consulta inicial tenía un filtro de fechas,
+  se debe ampliar".
+
+  verificacion_tercer_dia.sql tiene 4 consultas: los 6 registros del día 3, el
+  conteo por estado de ese día, los registros por fecha (6/6/6) y el total (18).
+  Cada una genera un CSV distinto, porque tienen columnas diferentes y así lo
+  pide el enunciado.
+
+  verificacion_inicial.sql es un extra: prueba que en la etapa inicial había 12
+  registros y que el día 3, aunque estaba proyectado, daba 0. Eso hace muy
+  visible la idea de que "la proyección no crea datos".
+
+  ---
+
+  4. El script scripts/ejecutar_consulta.sh
+
+  Automatiza lo que harías a mano en la consola de Athena:
+
+  1. Lee el .sql, quita los comentarios -- y lo separa por ; (por eso un archivo
+     puede tener varias consultas).
+  2. Lanza cada consulta en el workgroup entregas-wg y guarda el ID de 
+     ejecución.
+  3. Espera a que el estado sea SUCCEEDED. Si falla, muestra el motivo y se
+     detiene.
+  4. Descarga el CSV que Athena escribió en resultados-athena/, o sea, el
+     resultado real y no uno generado por nosotros.
+  5. Le quita las comillas, porque Athena escribe "fecha","estado" y las
+     referencias del profe no tienen comillas. Así un diff exacto da igual.
+  6. Agrega una línea a evidencias/ejecuciones_athena.csv con
+     etapa,archivo_sql,id_ejecucion,archivo_resultado.
+
+  Si el profe pregunta "¿esto es el resultado de Athena?", la respuesta es sí:
+  con el ID de ejecución se puede ubicar el archivo original. Lo único que se le
+  quitó son las comillas, y eso está documentado en el README.
+
+  ---
+
+  5. El flujo que se ejecutó y la evidencia de cada paso
+
+  Paso: Despliegue
+  Qué se hizo: terraform apply con 7 recursos
+  Evidencia: evidencias/aplicacion_terraform.txt, outputs.json
+  ────────────────────────────────────────
+  Paso: Carga inicial
+  Qué se hizo: 2 aws s3 cp, uno por archivo (prohibido subir la carpeta de forma
+
+    recursiva)
+  Evidencia: evidencias/cargas_s3.txt
+  ────────────────────────────────────────
+  Paso: Consultas iniciales
+  Qué se hizo: 3 consultas + verificación (12 registros, día 3 = 0)
+  Evidencia: resultados/inicial/ + ejecuciones_athena.csv
+  ────────────────────────────────────────
+  Paso: Comparación
+  Qué se hizo: diff contra resultados_esperados/*_inicial, sin diferencias
+  Evidencia: —
+  ────────────────────────────────────────
+  Paso: Carga del día 3
+  Qué se hizo: 1 aws s3 cp, nada más
+  Evidencia: cargas_s3.txt
+  ────────────────────────────────────────
+  Paso: Prueba de que no se tocó nada
+  Qué se hizo: get-partitions devuelve [] (Glue no tiene ninguna partición
+    registrada), terraform plan sale con código 0 (sin cambios) y el hash de la
+    tabla es igual antes y después
+  Evidencia: cargas_s3.txt
+  ────────────────────────────────────────
+  Paso: Consultas finales
+  Qué se hizo: verificación + intentos y porcentaje de nuevo
+  Evidencia: resultados/final/ + ejecuciones_athena.csv
+  ────────────────────────────────────────
+  Paso: Limpieza
+  Qué se hizo: vaciar el bucket + terraform destroy + comprobar que no queda
+  nada
+  Evidencia: evidencias/eliminacion_terraform.txt
+
+  El get-partitions → [] es la prueba más fuerte para la pregunta 1: Glue no
+  tiene ninguna partición registrada y aun así Athena leyó los tres días.
+
+  El error en la limpieza: en el primer intento escribí mal una opción de aws s3
+  rm. El bucket no se vació, y Terraform borró todo menos el bucket, porque S3
+  no deja borrar un bucket con archivos. Lo repetí bien y quedó limpio. En la
+  evidencia están los dos intentos con una nota que lo explica. Preferí dejarlo
+  a esconderlo.
+
+  ---
+
+  6. Revisión contra lo que pide el profe
+
+  - ✅ Estructura exacta de la sección 9, más extras permitidos (scripts/,
+    verificaciones, cargas_s3.txt).
+  - ✅ .gitignore excluye credenciales, *.tfstate* y .terraform/. Lo comprobé:
+    git los marca como ignorados y no hay llaves de AWS en ningún archivo.
+  - ✅ Todo está en Terraform. No hay ajustes hechos en la consola ni
+    particiones individuales.
+  - ✅ La carga se hizo en dos etapas, archivo por archivo.
+  - ✅ Las columnas de salida tienen los nombres exactos y los 5 resultados
+    coinciden con las referencias.
+  - ✅ Los IDs de ejecución tienen etapa y rutas relativas.
+  - ✅ Hay evidencia de la eliminación.
+
+  Hay tres cosas que tú decidiste o que debes conocer:
+  1. Renombré el README del profe a ENUNCIADO.md, porque la entrega necesita su
+     propio README con las instrucciones.
+  2. El ID de tu cuenta de AWS (807872461370) aparece en el nombre del bucket y
+     en las evidencias. No es una credencial, pero como el repo es público,
+     cualquiera lo verá. En tu Actividad AWS anterior también estaba expuesto,
+     así que lo dejé igual.
+  3. En tu versión de respuestas.md quitaste el detalle de que, con la
+     proyección activa, registrar la partición a mano tampoco haría que Athena 
+     la vea, porque Athena ignora las particiones de Glue. No es obligatorio,
+     pero si quieres reforzar la pregunta 2 es un buen dato.
+
+  ---
+
+  7. Preguntas que te podría hacer el profe
+
+  - ¿Por qué fecha es string y no date? Porque así lo pide el enunciado. La
+    proyección de tipo date se encarga de interpretar el formato, y la columna
+    se compara como texto ('2026-10-02').
+  - ¿Qué pasa si subo un archivo a entregas/fecha=2026-10-03/otro.csv? Athena
+    también lo lee, porque lee todos los objetos dentro del prefijo de la
+    partición.
+  - ¿Qué pasa si un CSV trae una columna de más o en otro orden? Se leen mal,
+    porque el SerDe asigna por posición. Por eso los archivos nuevos deben
+    respetar el esquema.
+  - ¿Por qué no cargaste los CSV con Terraform? No era obligatorio, y así queda
+    separada la infraestructura de los datos, además de respetar las dos etapas.
+
+  Cuando quieras seguimos con el commit y el push. Para eso necesito la URL del
+  repo vacío y tu confirmación.
+
+✻ Baked for 1m 2s · done 6:42 a.m.
+
+> ya lo subi a github, haz cd.. y entra a el DE-Final-Ventas para continuar con 
+  la otra parte del examen, no tienen que ver entre si para que lo tengas en    
+  cuenta, hagamos un plan primero y luego ejecutamos                            
+
+  Ran 3 shell commands (ctrl+o to expand)
+
+● Ya revisé DE-Final-Ventas, y efectivamente no tiene relación con el ejercicio
+  de Athena. Este es el plan.
+
+  Qué pide este examen
+
+  Es un pipeline local con Docker + Airflow + dbt + DuckDB. Solo se pueden
+  modificar 3 archivos:
+
+  ┌───────────────────────────────┬──────────────────────────────────────────┐
+  │            Archivo            │                Qué falta                 │
+  ├───────────────────────────────┼──────────────────────────────────────────┤
+  │                               │ El resumen diario: una fila por          │
+  │ dbt/models/ventas_diarias.sql │ fecha_venta con conteo, unidades e       │
+  │                               │ ingreso                                  │
+  ├───────────────────────────────┼──────────────────────────────────────────┤
+  │                               │ El control de freshness sobre            │
+  │ dbt/models/sources.yml        │ _loaded_at: advertencia a más de 12 h y  │
+  │                               │ error a más de 24 h                      │
+  ├───────────────────────────────┼──────────────────────────────────────────┤
+  │ airflow/dags/examen_ventas.py │ Una tarea nueva dbt source freshness que │
+  │                               │  corra antes de construir_resumen        │
+  └───────────────────────────────┴──────────────────────────────────────────┘
+
+  La idea central: dbt build puede terminar "exitoso" aunque los datos sean
+  viejos. La tarea de freshness actúa como un portero: si la última carga tiene
+  más de 24 h, falla, y Airflow no ejecuta el build (queda upstream_failed). Así
+  se conserva el resumen anterior.
+
+  Algo importante que encontré en el entorno
+
+  Ya tienes corriendo el contenedor examen-ventas-airflow-1, pero monta la
+  carpeta del ZIP de preparación
+  (~/Ing-Data/examen-ventas-entorno/entorno-estudiantes), no esta. Esa carpeta
+  no tiene el DAG ni los modelos. Hay que levantar Airflow desde DE-Final-Ventas
+  para que use nuestros archivos.
+
+  Como el proyecto de Docker se llama igual (examen-ventas), se conservan los
+  volúmenes y la imagen ya descargada. Solo se recrea el contenedor. No usaré 
+  docker compose down -v.
+
+  Plan de ejecución
+
+  Fase 0: entorno
+  1. bash scripts/preparar.sh: crea .env con AIRFLOW_UID=1000, el mismo valor
+     del ZIP.
+  2. docker compose up -d --wait airflow desde esta carpeta, para que el
+     contenedor apunte aquí.
+  3. bash scripts/examen.sh check. Si falla, paramos y avisas al profe, como
+     dice el README.
+
+  Fase 1: modelo
+  select
+      fecha_venta,
+      count(*)                       as numero_ventas,
+      sum(cantidad)                  as unidades_vendidas,
+      sum(cantidad * precio_unitario) as ingreso_total   -- decimal, sin perder 
+  precisión
+  from {{ ref('stg_ventas') }}
+  group by fecha_venta
+  Verifiqué a mano que da 46.00 / 51.25 / 12.40. Luego cargo el escenario
+  actualizada, corro dbt build y query para confirmar que todas las pruebas
+  pasan.
+
+  Fase 2: freshness en sources.yml, en la tabla ventas, al mismo nivel que
+  columns (no dentro de config):
+  loaded_at_field: _loaded_at
+  freshness:
+    warn_after: {count: 12, period: hour}
+    error_after: {count: 24, period: hour}
+  Lo pruebo con dbt source freshness directo.
+
+  Fase 3: DAG
+  comprobar_freshness = PythonOperator(
+      task_id="comprobar_freshness",
+      python_callable=run_dbt,
+      op_args=[["source", "freshness"]],
+  )
+  comprobar_freshness >> construir_resumen
+  Reutilizo run_dbt, que ya propaga el error con check=True. Mantengo
+  all_success y no uso --warn-error.
+
+  Fase 4: demostraciones (Trigger DAG desde la UI en Chrome, en localhost:8080)
+  1. Escenario actualizada, luego Trigger: freshness ✅, build ✅. Captura, logs
+     y consulta del resumen (antes).
+  2. Espero a que no haya tareas corriendo. Escenario desactualizada, luego un
+     Trigger nuevo: freshness ❌, build upstream_failed. Captura y log de
+     freshness con el motivo ("más de 24 h"). Verifico que build no tiene
+     intento ni INICIO dbt. Consulta del resumen (después): mismas 3 filas.
+  3. Opcional: advertencia (18 h), que da WARN y build ✅. Es rápido, lo
+     incluiría.
+
+  Además de las capturas, saco evidencia en texto desde el contenedor: estados
+  de cada ejecución con su run_id y logs completos de cada tarea. También
+  demuestro que no existe log de construir_resumen en la ejecución bloqueada.
+
+  Fase 5: respuestas: preparo un borrador de las 2 preguntas para que lo adaptes
+  con tus palabras, como hiciste con el otro.
+
+  Antes de ejecutar necesito definir tres cosas:
+
+● User answered Claude's questions:
+  ⎿  · ¿Cómo se entrega este examen de Ventas? (los entregables son: los 3 
+     archivos, capturas de las 2 ejecuciones, el log del fallo, el resumen 
+     antes/después y las respuestas) → Repo GitHub nuevo
+     · Las capturas de Airflow son obligatorias. ¿Cómo las tomamos? → Intento 
+     guardarlas yo
+     · ¿Incluyo el escenario opcional 'advertencia' (18 h → WARN y build 
+     success)? → Sí, incluirlo (Recommended)
+
+● Con tus respuestas, el plan queda así:
+
+  Plan final
+  1. Entorno: crear .env, levantar Airflow desde DE-Final-Ventas (el contenedor
+     deja de apuntar a la carpeta del ZIP y conserva los volúmenes) y correr
+     check.
+  2. Modelo ventas_diarias.sql: lo pruebo con dbt build y query contra los
+     valores esperados.
+  3. Freshness en sources.yml: _loaded_at, advertencia a más de 12 h y error a
+     más de 24 h. Lo pruebo con dbt source freshness.
+  4. DAG: tarea comprobar_freshness, que va antes de construir_resumen.
+  5. Tres ejecuciones desde la UI de Airflow en Chrome, cada una en una
+     ejecución nueva:
+     - actualizada: freshness ✅ y build ✅. Consulto el resumen (antes).
+     - advertencia: freshness con WARN ✅ y build ✅.
+     - desactualizada: freshness ❌ y build upstream_failed. Consulto el resumen
+       (después), que debe tener las mismas filas.
+
+     Hago desactualizada al final para que el resumen "después" quede justo tras
+     el bloqueo. El README pide consultar "antes" en el escenario actualizado y
+     no hacer build entre preparar el desactualizado y capturar, así que este
+     orden cumple.
+  6. Capturas: intento guardarlas yo con la extensión de Chrome. Si no puedo
+     guardarlas en disco, te aviso y las tomas tú.
+  7. Evidencia en texto: estados de cada ejecución con su run_id, logs de cada
+     tarea y prueba de que construir_resumen no tiene intento en la ejecución
+     bloqueada.
+  8. Entrega: carpeta entrega/ con capturas/, logs/, resumenes/, respuestas.md y
+     un README breve. No toco el README del profe ni ningún otro archivo fuera
+     de los 3 permitidos. Las respuestas serán un borrador para que lo adaptes
+     con tus palabras.
+  9. GitHub: creas un repo público vacío, me pasas la URL y hago commit y push
+     cuando me confirmes.
+
+  ¿Arranco con la ejecución? Si quieres, ve creando el repo vacío mientras
+  tanto.
+
+✻ Brewed for 1m 24s · done 6:48 a.m.
+
+> yo ya tengo lo de docker listo esta en Ing-Data examen ventas entorno         
+  entonces no hay que volverla a crear revisa el readme que indica que hcaer si 
+  ya lo tengo                                                                   
+
+● Tienes razón, y el README cubre exactamente ese caso ("Si ya preparaste el
+  entorno con el ZIP"):
+
+  1. Conservar el .env que creó preparar.sh, sin borrarlo ni reemplazarlo.
+  2. docker compose up -d --wait airflow, desde la carpeta de este proyecto.
+  3. bash scripts/examen.sh check.
+
+  Entonces no corro preparar.sh ni docker compose pull, y no se reconstruye
+  nada: la imagen smendezm/examen-ventas:1.0 y los volúmenes
+  (examen-ventas_warehouse y examen-ventas_state) se reutilizan tal cual.
+
+  Lo único que el README sí pide es ejecutar el up desde DE-Final-Ventas. Tu
+  contenedor actual monta la carpeta del ZIP, que no tiene el DAG, ni los
+  modelos, ni data/ventas.csv. Al hacer up desde aquí, Docker solo cambia esa
+  carpeta montada; el resto se mantiene. Para conservar tu .env, lo copio tal
+  cual del ZIP a esta carpeta. Hago eso ahora:
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● El entorno quedó listo y no se reconstruyó nada:
+
+  - .env conservado: copié tu AIRFLOW_UID=1000 desde la carpeta del ZIP sin
+    regenerarlo. El .gitignore del profe ya lo excluye, así que no se sube a
+    GitHub.
+  - docker compose up -d --wait airflow desde DE-Final-Ventas: el contenedor
+    quedó Healthy. Se usaron la imagen y los volúmenes que ya tenías, sin pull
+    ni down -v. Ahora /workspace apunta a ~/Ing-Data/Final/DE-Final-Ventas, así
+    que Airflow ya ve el DAG y los modelos del examen.
+  - check: todos los puntos en OK (montaje de solo lectura, escritura en /data y
+    /state, y DuckDB).
+
+  La carpeta del ZIP sigue intacta, solo que ya no la usa el contenedor.
+
+  Lo siguiente según el plan es escribir el modelo, freshness y el DAG,
+  probarlos por CLI y después correr las tres ejecuciones en Airflow. ¿Sigo?
+
+✻ Baked for 1m 26s · done 6:50 a.m.
+
+> si sigue, recuerda usar la extension de google para usar airflow              
+
+● Escribo los tres archivos.
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Files were written (only the Windows-side git failed). Now I test via CLI:
+  load the actualizada scenario, build, query, and freshness.
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Las 19 pruebas pasan, el resumen da exactamente 46.00 / 51.25 / 12.40
+  (DECIMAL(38,2)) y freshness da PASS con 2 h. Ahora paso a Airflow en Chrome.
+
+  Called claude-in-chrome 3 times (ctrl+o to expand)
+
+● Chrome ya tiene autocompletadas las credenciales locales del examen, que son
+  las del README. Inicio sesión.
+
+  Called claude-in-chrome 2 times (ctrl+o to expand)
+
+● El DAG está activo, no tiene errores de importación y ya muestra las dos
+  tareas (comprobar_freshness y construir_resumen). Preparo el escenario
+  actualizada justo antes del Trigger.
+
+  Called claude-in-chrome 2 times, ran 1 shell command (ctrl+o to expand)
+
+● The run was triggered. I'll wait for it to finish and open the Graph view.
+  Called claude-in-chrome 4 times (ctrl+o to expand)
+
+● Ambas tareas quedaron en success. Bajo un poco la página para capturar el
+  grafo completo junto con el run ID y la guardo en disco.
+
+  Called claude-in-chrome 2 times (ctrl+o to expand)
+
+● El guardado en disco funciona. Esta captura muestra los estados, pero solo la
+  fecha de la ejecución, no el run ID completo. Capturo también la pestaña
+  Details, que muestra el Run ID y el estado.
+
+  Called claude-in-chrome 2 times (ctrl+o to expand)
+
+● Ahora capturo los logs de ambas tareas de esta ejecución, empezando por
+  comprobar_freshness.
+
+  Called claude-in-chrome 2 times (ctrl+o to expand)
+
+● Navigating straight to the logs tab through the URL is more direct.
+
+  Called claude-in-chrome 2 times (ctrl+o to expand)
+
+● The Airflow log shows only the dbt start and finish markers, not dbt's output.
+  I'm checking whether that output exists in the log file on disk, since the
+  failure case depends on it. · summary
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● I'm getting the failure reason from the Airflow log, dbt.log and sources.json,
+  since dbt's output isn't in the Airflow log. I'm saving the log captures for
+  both tasks next, leaving runtime.py untouched. · summary
+
+  Called claude-in-chrome 3 times (ctrl+o to expand)
+
+● At 0.6 scale the log text looks small. I'll retake both captures at full
+  resolution so they're readable.
+
+  Called claude-in-chrome 3 times (ctrl+o to expand)
+
+● I'll put the captures in entrega/capturas/ and save the text evidence for the
+  first run: the summary "before", the task states, the full logs and the dbt
+  artifacts.
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Run 1 is done and saved. Next is the optional advertencia scenario (18 h).
+
+  Called claude-in-chrome 4 times, ran 1 shell command (ctrl+o to expand)
+
+● Both tasks are green in run 2. I'll capture this run's graph.
+
+  Called claude-in-chrome 2 times (ctrl+o to expand)
+
+● Now I save the evidence for run 2 (states, logs and the dbt WARN), then
+  prepare the desactualizada scenario without running any build in between.
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Run 2 behaved as expected: dbt reported WARN at 18.0 h, freshness ended in
+  success and build ran. No tasks are running and the scenario is now
+  desactualizada (30 h). I'll trigger run 3.
+
+  Called claude-in-chrome 4 times (ctrl+o to expand)
+
+● Run 3 matches expectations: comprobar_freshness failed and construir_resumen
+  is upstream_failed. I'm saving this view as is, then moving on to the
+  remaining views. · summary
+
+  Called claude-in-chrome 5 times (ctrl+o to expand)
+
+● Now the freshness log (with the error) and the construir_resumen task from
+  this run, to show it never ran.
+
+  Called claude-in-chrome 2 times (ctrl+o to expand)
+
+● The dbt source freshness check exited with code 1 and the task was marked
+  FAILED. I'm scrolling up to capture the start of the log and then the
+  construir_resumen task. · summary
+
+  Called claude-in-chrome 7 times (ctrl+o to expand)
+
+● The task shows trigger rule all_success and a 00:00:00 duration, so its
+  Started/Ended times are just when the scheduler marked it upstream_failed. I'm
+  saving that view and capturing the task's Logs tab next, which should be
+  empty. · summary
+
+  Called claude-in-chrome 3 times (ctrl+o to expand)
+
+● El log de construir_resumen de esta ejecución está vacío, sin INICIO dbt ni
+  intento. Voy a guardar la evidencia de la ejecución 3, incluido el motivo del
+  error de dbt, y comparar el resumen "antes" con el "después". · summary
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● All three runs matched expectations, with Run 3 showing a 30-hour stale error
+  and the before/after summaries identical. Next I'll tidy entrega/ and write
+  the delivery README and draft answers. · summary
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● Ahora el README de la entrega y el borrador de respuestas.
+
+  Ran 1 shell command (ctrl+o to expand)
+
+● The heredoc failed in Git Bash. I'll write the files with the Write tool
+  instead.
+● Write(\\wsl.localhost\Ubuntu-24.04\home\pgilm\Ing-Data\Final\DE-Final-Ventas\e
+       ntrega\respuestas.md)
+  ⎿  Wrote 23 lines to \\wsl.localhost\Ubuntu-24.04\home\pgilm\Ing-Data\Fin
+     al\DE-Final-Ventas\entrega\respuestas.md
+      1 # Respuestas conceptuales
+      2 
+      3 > Borrador para adaptar con palabras propias.
+      4 
+      5 ## 1. ¿Por qué usar `_loaded_at` y no `fecha_venta` para este con
+        trol?
+      6 
+      7 Porque lo que queremos vigilar es si **la carga llegó a tiempo**,
+         no cuándo ocurrieron las ventas. `_loaded_at` marca el momento e
+        n que cada fila entró a `raw`, así que `max(_loaded_at)` dice cuá
+     … +17 lines (~2 KB) (ctrl+o to expand)
+
+● Write(\\wsl.localhost\Ubuntu-24.04\home\pgilm\Ing-Data\Final\DE-Final-Ventas\e
+       ntrega\README.md)
+  ⎿  Wrote 68 lines to \\wsl.localhost\Ubuntu-24.04\home\pgilm\Ing-Data\Fin
+     al\DE-Final-Ventas\entrega\README.md
+       1 # Entrega: ventas diarias con control de actualidad
+       2 
+       3 **Autor:** Pablo Gil.
+       4 
+       5 Esta carpeta contiene las evidencias del examen. El enunciado es
+         tá en el [README del proyecto](../README.md). Solo se modificaro
+         n los tres archivos permitidos:
+       6 
+       7 | Archivo | Cambio |
+       8 |---|---|
+     … +60 lines (ctrl+o to expand)
+
+● Before finishing I'll check two claims in the README: that no dbt build ran
+  after the block, and that git only sees the 3 files plus entrega/.
+
+  Called claude-in-chrome, ran 1 shell command (ctrl+o to expand)
+
+● The Ventas exam ran end to end and all three runs came out exactly as the
+  README asks. I used the Chrome extension to trigger the DAG and take the
+  captures. The only thing left is to upload it to GitHub.
+
+  The 3 changed files:
+  - ventas_diarias.sql: groups by fecha_venta with count(*), sum(cantidad) and
+    sum(cantidad * precio_unitario). The result matches the expected table
+    exactly (46.00 / 51.25 / 12.40), and dbt build passes all 19 tests.
+  - sources.yml: loaded_at_field: _loaded_at, warning above 12 h and error above
+    24 h, declared on the table outside config as the README asks.
+  - examen_ventas.py: new task comprobar_freshness, which reuses run_dbt with
+    ["source", "freshness"] and runs before construir_resumen. The rule stays
+    all_success.
+
+  The three runs in Airflow:
+
+  ┌─────────────────────┬─────────┬───────────┬───────────┬─────────────────┐
+  │      Scenario       │  Last   │ dbt says  │ freshness │      build      │
+  │                     │  load   │           │           │                 │
+  ├─────────────────────┼─────────┼───────────┼───────────┼─────────────────┤
+  │ actualizada         │ 2 h     │ PASS      │ success   │ success         │
+  ├─────────────────────┼─────────┼───────────┼───────────┼─────────────────┤
+  │ advertencia         │ 18 h    │ WARN      │ success   │ success         │
+  │ (optional)          │         │           │           │                 │
+  ├─────────────────────┼─────────┼───────────┼───────────┼─────────────────┤
+  │ desactualizada      │ 30 h    │ ERROR     │ failed    │ upstream_failed │
+  │                     │         │ STALE     │           │                 │
+  └─────────────────────┴─────────┴───────────┴───────────┴─────────────────┘
+
+  In the desactualizada run, I confirmed in four ways that the build did not
+  run:
+  - Airflow's database records 0 attempts for it.
+  - It has no log folder.
+  - It has no INICIO dbt line.
+  - dbt's own log shows no build after the block.
+
+  The summary I queried after the block is identical to the one from before. The
+  table was kept, not rebuilt.
+
+  One thing you should know: Airflow's log doesn't show dbt's output, only
+  INICIO dbt and the error with exit code 1. That's because the professor's
+  helper function launches dbt as a separate process. I didn't touch it, since
+  the exam forbids modifying it. The exact reason for the failure (ERROR STALE,
+  30.00 hours, 24 h threshold) is in a separate file, taken from dbt's own log
+  and from the sources.json file dbt writes on every check.
+
+  Everything is in entrega/:
+  - 13 captures.
+  - Logs for each task.
+  - The reason for the failure, in
+    entrega/logs/desactualizada_motivo_error_freshness.txt.
+  - Task states and attempt counts.
+  - The summary before and after the block.
+  - A README with links to each piece of evidence.
+  - respuestas.md, with a draft of both answers. Rewrite it in your own words,
+    as you did in the first exam.
+
+  Git sees only the 3 files plus entrega/. Your .env stays out and there are no
+  credentials. I closed the Chrome tab I was using.
+
+  What I need from you: the URL of the new public repo, created empty, and your
+  OK to commit and push. I'll point origin to your repo and keep the professor's
+  as upstream, same as last time.
+
+✻ Cooked for 8m 5s · done 6:59 a.m.
+
+※ recap: The Ventas exam is finished: the three files are done, all three Airflow runs behaved as required, and the evidence is in `entrega/`. Next, send me your new empty GitHub repo URL and your OK to commit and push. (disable recaps in /config)
+
+> bien ahora explicame que quiero entender                                      
+
+● Te explico todo en orden. Vi que reescribiste respuestas.md con tus palabras:
+  quedó bien, es correcto y mantiene la referencia a las evidencias.
+
+  ---
+
+  1. El problema que resuelve el examen
+
+  Una empresa reconstruye cada día una tabla de resumen de ventas. El peligro es
+  este: la carga de datos se atrasa, pero el proceso igual "termina bien". dbt 
+  build toma lo que haya en raw, que son datos viejos, reconstruye el resumen,
+  pasa todas las pruebas y queda en verde. Nadie se entera de que el resumen
+  está desactualizado.
+
+  La solución es poner un control de actualidad (freshness) antes del build:
+  - Si la última carga es reciente, se construye.
+  - Si es algo vieja, se construye pero con advertencia.
+  - Si es muy vieja, no se construye y se conserva el resumen anterior.
+
+  ---
+
+  2. Las piezas del entorno
+
+  ┌─────────┬────────────────────────────────────────────────────────────────┐
+  │  Pieza  │                         Qué hace aquí                          │
+  ├─────────┼────────────────────────────────────────────────────────────────┤
+  │ Docker  │ Todo corre dentro de la imagen smendezm/examen-ventas:1.0. En  │
+  │         │ tu máquina solo necesitas Bash y Docker.                       │
+  ├─────────┼────────────────────────────────────────────────────────────────┤
+  │ DuckDB  │ La base de datos, un solo archivo /data/ventas.duckdb dentro   │
+  │         │ de un volumen de Docker.                                       │
+  ├─────────┼────────────────────────────────────────────────────────────────┤
+  │ dbt     │ Transforma los datos con SQL y ejecuta pruebas y freshness.    │
+  ├─────────┼────────────────────────────────────────────────────────────────┤
+  │ Airflow │ Orquesta: decide qué tarea corre, en qué orden y qué pasa si   │
+  │         │ una falla. Es la UI de localhost:8080.                         │
+  └─────────┴────────────────────────────────────────────────────────────────┘
+
+  Los datos fluyen así:
+
+  raw.ventas  ──►  stg_ventas  ──►  ventas_diarias
+  (fuente)         (vista limpia,    (resumen, 1 fila
+                    ya existía)       por fecha: lo que hicimos)
+
+  Los escenarios (examen.sh scenario actualizada|advertencia|desactualizada)
+  borran raw.ventas y vuelven a insertar las mismas 6 ventas. Lo único que
+  cambia es _loaded_at: ahora menos 2 h, menos 18 h o menos 30 h. Así se simula
+  una carga atrasada sin cambiar los datos del negocio.
+
+  Lo que hicimos con el entorno
+
+  Tu contenedor ya estaba corriendo, pero montaba la carpeta del ZIP (/workspace
+  → examen-ventas-entorno), que no tenía el DAG ni los modelos. El README dice
+  qué hacer en ese caso: conservar el .env y correr docker compose up -d --wait 
+  airflow desde la carpeta del examen.
+
+  - Qué cambió: solo qué carpeta monta el contenedor.
+  - Qué se mantuvo: la imagen y los volúmenes con la base de datos y el estado
+    de Airflow. Por eso nunca se usa down -v, que borraría esos volúmenes.
+
+  El .env solo contiene AIRFLOW_UID=1000, que es tu usuario de Linux. Sirve para
+  que el contenedor escriba archivos con tus permisos.
+
+  ---
+
+  3. Archivo 1: el modelo ventas_diarias.sql
+
+  select
+      fecha_venta,
+      count(*)                        as numero_ventas,
+      sum(cantidad)                   as unidades_vendidas,
+      sum(cantidad * precio_unitario) as ingreso_total
+  from {{ ref('stg_ventas') }}
+  group by fecha_venta
+
+  - group by fecha_venta: una fila por día. La prueba unique sobre fecha_venta
+    lo verifica.
+  - {{ ref('stg_ventas') }}: en dbt no se escribe el nombre de la tabla
+    directamente, se usa ref. Así dbt sabe que ventas_diarias depende de
+    stg_ventas y las construye en orden.
+  - Precisión decimal: cantidad es entero y precio_unitario es DECIMAL(12,2). Al
+    multiplicarlos, el resultado sigue siendo DECIMAL y queda DECIMAL(38,2). Si
+    fuera float, podrían aparecer errores de redondeo como 51.2499999. Por eso
+    no conviene convertir a double.
+  - Comprobación a mano: el día 10 son 2×10.50 + 1×25.00 = 46.00. El día 11 son
+    21.75 + 24 + 5.50 = 51.25. El día 12 son 4×3.10 = 12.40.
+  - No pusimos config(materialized='table') porque ya está en dbt_project.yml
+    (+materialized: table), como dice el README.
+
+  ---
+
+  4. Archivo 2: freshness en sources.yml
+
+  - name: ventas
+    loaded_at_field: _loaded_at
+    freshness:
+      warn_after:  {count: 12, period: hour}
+      error_after: {count: 24, period: hour}
+    columns: ...
+
+  Qué hace dbt source freshness:
+  1. Ejecuta select max(_loaded_at) from raw.ventas.
+  2. Lo resta de la hora actual (UTC), y eso es la antigüedad.
+  3. Compara la antigüedad con los umbrales:
+
+  ┌─────────────────┬─────────────┬─────────────────────────┐
+  │   Antigüedad    │  Resultado  │ Código de salida de dbt │
+  ├─────────────────┼─────────────┼─────────────────────────┤
+  │ ≤ 12 h          │ PASS        │ 0, éxito                │
+  ├─────────────────┼─────────────┼─────────────────────────┤
+  │ > 12 h y ≤ 24 h │ WARN        │ 0, éxito con aviso      │
+  ├─────────────────┼─────────────┼─────────────────────────┤
+  │ > 24 h          │ ERROR STALE │ 1, fallo                │
+  └─────────────────┴─────────────┴─────────────────────────┘
+
+  Ese código de salida es la clave de todo el examen. Una advertencia no hace
+  fallar el proceso; un error sí. Por eso el README prohíbe --warn-error: esa
+  opción convertiría las advertencias en errores y el escenario de 18 h
+  bloquearía el build.
+
+  Detalles importantes:
+  - loaded_at_field y freshness van al nivel de la tabla, junto a columns y
+    fuera de config, como pide la ficha para dbt 1.9.
+  - Declarar esto no ejecuta nada. Solo define la regla. Alguien tiene que
+    correr dbt source freshness, y dbt build no lo hace. Por eso hace falta la
+    tarea en Airflow.
+
+  ---
+
+  5. Archivo 3: el DAG examen_ventas.py
+
+  comprobar_freshness = PythonOperator(
+      task_id="comprobar_freshness",
+      python_callable=run_dbt,
+      op_args=[["source", "freshness"]],
+  )
+  construir_resumen = PythonOperator(... op_args=[["build"]])
+
+  comprobar_freshness >> construir_resumen
+
+  Cómo se conecta todo:
+
+  1. run_dbt es la función del profe (scripts/runtime.py). Imprime INICIO dbt,
+     ejecuta dbt con subprocess.run(..., check=True) e imprime FIN dbt.
+  2. check=True significa que, si dbt sale con código distinto de 0, Python
+     lanza la excepción CalledProcessError. Como en ese caso la excepción ocurre
+     antes del print, FIN dbt nunca se imprime.
+  3. Si la función de un PythonOperator lanza una excepción, Airflow marca la
+     tarea como failed. Con retries: 0 no hay reintentos.
+  4. >> define el orden: construir_resumen depende de comprobar_freshness.
+  5. La regla de disparo por defecto es all_success: una tarea solo corre si
+     todas las anteriores terminaron en success. Si la anterior falló, Airflow
+     ni siquiera la ejecuta y la marca upstream_failed.
+
+  La cadena completa queda así:
+
+  30 h → dbt ERROR → exit 1 → CalledProcessError → freshness FAILED → build 
+  UPSTREAM_FAILED → resumen intacto
+  18 h → dbt WARN  → exit 0 → sin excepción       → freshness SUCCESS → build 
+  corre
+
+  No escribimos ningún if ni lógica especial. Bastó con conectar las tareas y
+  dejar que el error se propagara, que es lo que pide el README ("deja que los
+  errores se propaguen a Airflow").
+
+  ---
+
+  6. Las tres ejecuciones y por qué en ese orden
+
+  ┌───────┬─────────────────────┬───────────────────────────────────────────┐
+  │ Orden │      Escenario      │                 Para qué                  │
+  ├───────┼─────────────────────┼───────────────────────────────────────────┤
+  │ 1     │ actualizada (2 h)   │ Mostrar el flujo normal y guardar el      │
+  │       │                     │ resumen antes                             │
+  ├───────┼─────────────────────┼───────────────────────────────────────────┤
+  │ 2     │ advertencia (18 h)  │ Opcional: mostrar que WARN deja pasar     │
+  ├───────┼─────────────────────┼───────────────────────────────────────────┤
+  │ 3     │ desactualizada (30  │ Mostrar el bloqueo y guardar el resumen   │
+  │       │ h)                  │ después                                   │
+  └───────┴─────────────────────┴───────────────────────────────────────────┘
+
+  Dejé la desactualizada al final por dos razones. El README pide no correr
+  ningún build entre preparar ese escenario y capturar las evidencias. Además,
+  así el "después" queda justo tras el bloqueo.
+
+  Cada escenario se preparó justo antes de su Trigger, porque la antigüedad
+  depende del reloj. Cada Trigger crea una ejecución nueva con su propio run_id;
+  nunca usamos "Clear" sobre una anterior, cosa que el README prohíbe.
+
+  Cómo demostramos que el build no corrió
+
+  El README advierte que comparar el resumen no basta: los datos de negocio son
+  iguales, así que el resumen saldría igual aunque el build sí hubiera corrido.
+  Por eso juntamos cuatro pruebas independientes:
+
+  1. Estado: upstream_failed en la UI y por línea de comandos.
+  2. Intentos: en la base de Airflow, try_number = 0, sin hostname ni pid. Nunca
+     se lanzó un proceso.
+  3. Log: la pestaña Logs está vacía, no hay INICIO dbt y no existe carpeta de
+     logs para esa tarea en esa ejecución.
+  4. dbt: el log de dbt muestra 7 invocaciones y la última es el source 
+     freshness fallido. No hay ningún build después.
+
+  La fecha "Started/Ended" que aparece en la captura del build es el momento en
+  que el scheduler marcó la tarea como upstream_failed, no una ejecución real.
+  La duración es 00:00:00.
+
+  Por qué el log de Airflow no muestra el detalle de dbt
+
+  run_dbt lanza dbt como un proceso aparte, y Airflow solo captura lo que
+  imprime Python (INICIO/FIN), no la salida de ese otro proceso. En el fallo,
+  Airflow muestra la excepción con returned non-zero exit status 1, pero no dice
+  "30 horas".
+
+  El README pide "el log que explica el fallo", así que lo complementé con lo
+  que dbt escribe por su cuenta:
+  - dbt.log: la línea ERROR STALE freshness of ventas_raw.ventas.
+  - sources.json, el artefacto que se ve con examen.sh artifacts: status: error,
+    antigüedad 30.00 h y criterio error_after 24 hour.
+
+  Todo eso quedó en entrega/logs/desactualizada_motivo_error_freshness.txt. No
+  modifiqué runtime.py porque está prohibido.
+
+  ---
+
+  7. Lo que hay en entrega/
+
+  ┌───────────────┬──────────────────────────────────────────────────────────┐
+  │    Carpeta    │                        Contenido                         │
+  ├───────────────┼──────────────────────────────────────────────────────────┤
+  │ capturas/     │ 13 capturas, numeradas por escenario (1, 2, 3)           │
+  ├───────────────┼──────────────────────────────────────────────────────────┤
+  │               │ Log de Airflow por tarea y escenario, resultado de       │
+  │ logs/         │ freshness por escenario, motivo del error y              │
+  │               │ dbt_completo.log                                         │
+  ├───────────────┼──────────────────────────────────────────────────────────┤
+  │ estados/      │ Estados de cada ejecución, lista de ejecuciones del DAG  │
+  │               │ e intentos de la ejecución bloqueada                     │
+  ├───────────────┼──────────────────────────────────────────────────────────┤
+  │ resumenes/    │ Resumen antes y después del bloqueo (idénticos)          │
+  ├───────────────┼──────────────────────────────────────────────────────────┤
+  │ README.md     │ Índice con los run IDs y enlaces a cada evidencia        │
+  ├───────────────┼──────────────────────────────────────────────────────────┤
+  │ respuestas.md │ Tus respuestas                                           │
+  └───────────────┴──────────────────────────────────────────────────────────┘
+
+  ---
+
+  8. Preguntas que te podría hacer el profe
+
+  - ¿Por qué la advertencia no bloquea? Porque dbt sale con código 0 en WARN.
+    Airflow ve success y all_success deja pasar al build.
+  - ¿Qué pasaría con trigger_rule="all_done"? El build correría aunque freshness
+    fallara, así que el control no serviría. Por eso se mantiene all_success.
+  - ¿Por qué no un if en Python que lea la antigüedad? Porque dbt ya hace esa
+    comparación. Basta con propagar su código de salida y no se duplica lógica.
+  - ¿Freshness garantiza que llegaron todas las ventas? No, solo que la última
+    carga es reciente. Si llegó una sola fila hace 1 hora, pasa aunque falten
+    mil. Lo mencionas en tu respuesta 1.
+  - ¿Por qué UTC? _loaded_at es TIMESTAMPTZ en UTC y el perfil fija TimeZone: 
+    UTC, así que la resta es consistente sin importar la zona horaria de tu
+    máquina.
+  - Si reinicias Docker mañana, ¿qué pasa? El tiempo sigue corriendo: la carga
+    "actualizada" de hoy tendría más de 24 h y freshness fallaría. Por eso el
+    README dice que se prepare el escenario de nuevo antes de cada prueba.
+
+  ---
+
+  Cuando quieras, pásame la URL del repo vacío y dime si hago el commit y push.
+
+✻ Sautéed for 47s · done 7:06 a.m.

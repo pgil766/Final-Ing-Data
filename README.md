@@ -2,3 +2,4 @@
 
 - `DE-Final-Entregas/`: punto 1 (S3, Glue con partition projection y Athena con Terraform).
 - `DE-Final-Ventas/`: punto 2 (dbt source freshness y Airflow).
+- `UsoIA/HiloUsoIA.txt`: hilo del chat con IA usado para la solución.
